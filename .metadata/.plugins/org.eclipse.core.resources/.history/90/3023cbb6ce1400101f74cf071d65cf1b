@@ -1,0 +1,26 @@
+package com.projeto.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "matricula")
+public class Matricula {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    public Aluno aluno;
+
+    @ManyToOne
+    public Curso curso;
+
+    public Matricula() {}
+    public Matricula(Aluno aluno, Curso curso) {
+        this.aluno = aluno;
+        this.curso = curso;
+    }
+
+    public Aluno getAluno() { return aluno; }
+    public Curso getCurso() { return curso; }
+}

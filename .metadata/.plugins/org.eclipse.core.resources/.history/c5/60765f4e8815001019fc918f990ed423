@@ -1,0 +1,176 @@
+package com.projeto;
+
+import com.projeto.model.Aluno;
+import com.projeto.model.Curso;
+import com.projeto.model.Matricula;
+import jakarta.persistence.*;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    private static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("alunoPU");
+    private static final EntityManager em = emf.createEntityManager();
+    private static final Scanner scanner = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        int opcao;
+        do {
+            System.out.println("\n--- MENU ---");
+            System.out.println("1. Cadastrar aluno");
+            System.out.println("2. Listar alunos");
+            System.out.println("3. Cadastrar curso");
+            System.out.println("4. Listar cursos");
+            System.out.println("5. Matricular aluno em curso");
+            System.out.println("6. Listar matrículas");
+            System.out.println("7. Editar nome de aluno");
+            System.out.println("8. Excluir matrícula");
+            System.out.println("0. Sair");
+            System.out.print("Escolha: ");
+            opcao = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (opcao) {
+                case 1 -> cadastrarAluno();
+                case 2 -> listarAlunos();
+                case 3 -> cadastrarCurso();
+                case 4 -> listarCursos();
+                case 5 -> matricularAluno();
+                case 6 -> listarMatriculas();
+                case 7 -> editarNomeAluno();
+                case 8 -> excluirMatricula();
+            }
+        } while (opcao != 0);
+
+        em.close();
+        emf.close();
+    }
+
+    private static void cadastrarAluno() {
+        String nome;
+        do {
+            System.out.print("Nome do aluno (apenas letras): ");
+            nome = scanner.nextLine();
+        } while (!nome.matches("[a-zA-ZÀ-ÿ ]+"));
+
+        System.out.print("RA do aluno: ");
+        String ra = scanner.nextLine();
+
+        em.getTransaction().begin();
+        em.persist(new Aluno(nome, ra));
+        em.getTransaction().commit();
+        System.out.println("Aluno cadastrado com sucesso!");
+    }
+
+    private static void cadastrarCurso() {
+        String nome;
+        do {
+            System.out.print("Nome do curso (apenas letras): ");
+            nome = scanner.nextLine();
+        } while (!nome.matches("[a-zA-ZÀ-ÿ ]+"));
+
+        em.getTransaction().begin();
+        em.persist(new Curso(nome));
+        em.getTransaction().commit();
+        System.out.println("Curso cadastrado com sucesso!");
+    }
+
+    private static void listarAlunos() {
+        List<Aluno> alunos = em.createQuery("FROM Aluno", Aluno.class).getResultList();
+        alunos.forEach(a -> System.out.println(a.getId() + " - " + a.getNome() + " | RA: " + a.getRa()));
+    }
+
+    private static void listarCursos() {
+        List<Curso> cursos = em.createQuery("FROM Curso", Curso.class).getResultList();
+        cursos.forEach(c -> System.out.println(c.getId() + " - " + c.getNome()));
+    }
+
+    private static void matricularAluno() {
+        listarAlunos();
+        System.out.print("Digite o ID do aluno: ");
+        Long alunoId = scanner.nextLong();
+        scanner.nextLine();
+
+        listarCursos();
+        System.out.print("Digite o ID do curso: ");
+        Long cursoId = scanner.nextLong();
+        scanner.nextLine();
+
+        Aluno aluno = em.find(Aluno.class, alunoId);
+        Curso curso = em.find(Curso.class, cursoId);
+
+        if (aluno == null || curso == null) {
+            System.out.println("Aluno ou curso não encontrado.");
+            return;
+        }
+
+        TypedQuery<Matricula> query = em.createQuery(
+            "SELECT m FROM Matricula m WHERE m.aluno = :aluno AND m.curso = :curso", Matricula.class);
+        query.setParameter("aluno", aluno);
+        query.setParameter("curso", curso);
+
+        if (!query.getResultList().isEmpty()) {
+            System.out.println("Este aluno já está matriculado neste curso.");
+            return;
+        }
+
+        em.getTransaction().begin();
+        Matricula matricula = new Matricula(aluno, curso);
+        em.persist(matricula);
+        em.getTransaction().commit();
+
+        System.out.println("Aluno matriculado com sucesso!");
+    }
+
+    private static void listarMatriculas() {
+        List<Matricula> matriculas = em.createQuery("FROM Matricula", Matricula.class).getResultList();
+        System.out.println("\n--- MATRÍCULAS ---");
+        for (Matricula m : matriculas) {
+            System.out.println("ID: " + m.getId() + " | Aluno: " + m.getAluno().getNome() + " | Curso: " + m.getCurso().getNome());
+        }
+    }
+
+    private static void editarNomeAluno() {
+        listarAlunos();
+        System.out.print("Digite o ID do aluno que deseja editar: ");
+        Long id = scanner.nextLong();
+        scanner.nextLine();
+
+        Aluno aluno = em.find(Aluno.class, id);
+
+        if (aluno != null) {
+            System.out.print("Novo nome (apenas letras): ");
+            String novoNome = scanner.nextLine();
+            if (!novoNome.matches("[a-zA-ZÀ-ÿ ]+")) {
+                System.out.println("Nome inválido.");
+                return;
+            }
+
+            em.getTransaction().begin();
+            aluno.setNome(novoNome);
+            em.getTransaction().commit();
+
+            System.out.println("Nome atualizado com sucesso!");
+        } else {
+            System.out.println("Aluno não encontrado.");
+        }
+    }
+
+    private static void excluirMatricula() {
+        listarMatriculas();
+        System.out.print("Digite o ID da matrícula que deseja excluir: ");
+        Long id = scanner.nextLong();
+        scanner.nextLine();
+
+        Matricula matricula = em.find(Matricula.class, id);
+
+        if (matricula != null) {
+            em.getTransaction().begin();
+            em.remove(matricula);
+            em.getTransaction().commit();
+            System.out.println("Matrícula excluída com sucesso!");
+        } else {
+            System.out.println("Matrícula não encontrada.");
+        }
+    }
+}

@@ -1,0 +1,124 @@
+package com.projeto;
+
+import com.projeto.model.Aluno;
+import com.projeto.model.Curso;
+import com.projeto.model.Matricula;
+import jakarta.persistence.*;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class Main {
+    private static final EntityManagerFactory emf = Persistence.createEntityManagerFactory("alunoPU");
+    private static final EntityManager em = emf.createEntityManager();
+    private static final Scanner scanner = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        int opcao;
+        do {
+            System.out.println("\n--- MENU ---");
+            System.out.println("1. Cadastrar aluno");
+            System.out.println("2. Listar alunos");
+            System.out.println("3. Cadastrar curso");
+            System.out.println("4. Listar cursos");
+            System.out.println("5. Matricular aluno em curso");
+            System.out.println("6. Listar matrículas");
+            System.out.println("0. Sair");
+            System.out.print("Escolha: ");
+            opcao = scanner.nextInt();
+            scanner.nextLine();
+
+            switch (opcao) {
+                case 1 -> cadastrarAluno();
+                case 2 -> listarAlunos();
+                case 3 -> cadastrarCurso();
+                case 4 -> listarCursos();
+                case 5 -> matricularAluno();
+                case 6 -> listarMatriculas();
+            }
+        } while (opcao != 0);
+
+        em.close();
+        emf.close();
+    }
+
+    private static void cadastrarAluno() {
+        String nome;
+        do {
+            System.out.print("Nome do aluno (apenas letras): ");
+            nome = scanner.nextLine();
+        } while (!nome.matches("[a-zA-ZÀ-ÿ ]+"));
+
+        System.out.print("RA do aluno: ");
+        String ra = scanner.nextLine();
+
+        em.getTransaction().begin();
+        em.persist(new Aluno(nome, ra));
+        em.getTransaction().commit();
+        System.out.println("Aluno cadastrado com sucesso!");
+    }
+
+    private static void cadastrarCurso() {
+        String nome;
+        do {
+            System.out.print("Nome do curso (apenas letras): ");
+            nome = scanner.nextLine();
+        } while (!nome.matches("[a-zA-ZÀ-ÿ ]+"));
+
+        em.getTransaction().begin();
+        em.persist(new Curso(nome));
+        em.getTransaction().commit();
+        System.out.println("Curso cadastrado com sucesso!");
+    } {
+        System.out.print("Nome do curso: ");
+        String nome = scanner.nextLine();
+        em.getTransaction().begin();
+        em.persist(new Curso(nome));
+        em.getTransaction().commit();
+        System.out.println("Curso cadastrado com sucesso!");
+    }
+
+    private static void listarCursos() {
+        List<Curso> cursos = em.createQuery("FROM Curso", Curso.class).getResultList();
+        cursos.forEach(c -> System.out.println(c.getId() + " - " + c.getNome()));
+    }
+
+    private static void matricularAluno() {
+        listarAlunos();
+        System.out.print("Digite o ID do aluno: ");
+        Long alunoId = scanner.nextLong();
+        scanner.nextLine();
+
+        listarCursos();
+        System.out.print("Digite o ID do curso: ");
+        Long cursoId = scanner.nextLong();
+        scanner.nextLine();
+
+        Aluno aluno = em.find(Aluno.class, alunoId);
+        Curso curso = em.find(Curso.class, cursoId);
+
+        if (aluno == null || curso == null) {
+            System.out.println("Aluno ou curso não encontrado.");
+            return;
+        }
+
+        em.getTransaction().begin();
+        curso.getAlunos().add(aluno);
+        aluno.getCursos().add(curso);
+        em.persist(aluno);
+        em.persist(curso);
+        Matricula matricula = new Matricula(aluno, curso);
+        em.persist(matricula);
+        em.getTransaction().commit();
+
+        System.out.println("Aluno matriculado com sucesso!");
+    }
+
+    private static void listarMatriculas() {
+        List<Matricula> matriculas = em.createQuery("FROM Matricula", Matricula.class).getResultList();
+        System.out.println("\n--- MATRÍCULAS ---");
+        for (Matricula m : matriculas) {
+            System.out.println("Aluno: " + m.getAluno().getNome() + " | Curso: " + m.getCurso().getNome());
+        }
+    }
+}
